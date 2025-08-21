@@ -19,7 +19,7 @@ public class GameManager : MonoBehaviour
 
     [Header("Game State")]
     public GameState state = GameState.MainMenu;
-    public int score = 0;
+    int score = 0;
 
     private void Awake()
     {
@@ -49,7 +49,6 @@ public class GameManager : MonoBehaviour
         state = GameState.Playing;
         score = 0;
         uiManager.ShowGameUI(score);
-        tubeManager.ResetTubes();
         ballSpawner.InitAndSpawnFirst();
     }
 
@@ -74,6 +73,5 @@ public class GameManager : MonoBehaviour
     {
         state = GameState.MainMenu;
         uiManager.ShowMainMenu();
-        tubeManager.ResetTubes();
     }
 }

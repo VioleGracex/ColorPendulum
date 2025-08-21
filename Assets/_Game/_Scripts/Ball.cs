@@ -32,17 +32,7 @@ public class Ball : MonoBehaviour
         // Clamp ball within screen by physics (use edge colliders in scene)
     }
 
-    private void OnCollisionEnter2D(Collision2D col)
-    {
-        if (isFalling && col.gameObject.CompareTag("Tube"))
-        {
-            isFalling = false;
-            rb.gravityScale = 0;
-            rb.linearVelocity = Vector2.zero;
-            TubeManager tubeManager = GameManager.Instance.tubeManager;
-            tubeManager.StackBallInTube(this);
-        }
-    }
+    // Collision-based stacking removed. TubeManager will use overlap checks instead.
 
     public void PlayClearEffect()
     {

@@ -1,4 +1,6 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.EnhancedTouch;
 
 public class PendulumController : MonoBehaviour
 {
@@ -12,6 +14,7 @@ public class PendulumController : MonoBehaviour
     void Start()
     {
         startTime = Time.time;
+        EnhancedTouchSupport.Enable();
     }
 
     void Update()
@@ -19,7 +22,23 @@ public class PendulumController : MonoBehaviour
         float swing = Mathf.Sin((Time.time - startTime) * swingSpeed) * swingAmplitude;
         transform.localRotation = Quaternion.Euler(0, 0, swing);
 
-        if (attachedBall != null && Input.GetMouseButtonDown(0))
+        bool released = false;
+        // PC: Mouse click
+        if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
+        {
+            released = true;
+        }
+        // Mobile: Touch
+        foreach (var touch in UnityEngine.InputSystem.EnhancedTouch.Touch.activeTouches)
+        {
+            if (touch.phase == UnityEngine.InputSystem.TouchPhase.Began)
+            {
+                released = true;
+                break;
+            }
+        }
+
+        if (attachedBall != null && released)
         {
             ReleaseBall();
         }
@@ -39,5 +58,9 @@ public class PendulumController : MonoBehaviour
         attachedBall.OnReleased();
         attachedBall = null;
         // Tell GameManager/BallSpawner to spawn next ball after a delay
+    }
+    private void OnDestroy()
+    {
+        EnhancedTouchSupport.Disable();
     }
 }
