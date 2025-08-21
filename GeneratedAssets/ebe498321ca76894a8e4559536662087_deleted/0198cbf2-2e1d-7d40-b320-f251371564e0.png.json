@@ -1,0 +1,20 @@
+{
+    "asset": "ebe498321ca76894a8e4559536662087",
+    "fileName": "0198cbf2-2e1d-7d40-b320-f251371564e0.png",
+    "prompt": "\"Pixel art style, black and blue neon glowing computer with futuristic cyberpunk design, sitting on a small glowing table. The computer has a sleek rectangular monitor and keyboard merged into one compact device. The table emits faint blue neon light beneath, giving it a hovering futuristic feel. The whole object (table + computer) is angled to face left, appearing ready to fly leftward across the screen in a side-scrolling game. Background should be transparent. Resolution 64x64 pixels.\"",
+    "negativePrompt": "",
+    "model": "b91fcf71-f4cf-43cb-ba1e-1f22a1296e46",
+    "modelName": "8-bit Pixel",
+    "customSeed": -1,
+    "w3CTraceId": "1186c39024e8d1875aaa520c3d812231",
+    "refinementMode": "Generation",
+    "pixelateTargetSize": 0,
+    "pixelateKeepImageSize": false,
+    "pixelatePixelBlockSize": 0,
+    "pixelateMode": 0,
+    "pixelateOutlineThickness": 0,
+    "doodles": {
+        "m_Items": []
+    },
+    "upscaleFactor": 0
+}

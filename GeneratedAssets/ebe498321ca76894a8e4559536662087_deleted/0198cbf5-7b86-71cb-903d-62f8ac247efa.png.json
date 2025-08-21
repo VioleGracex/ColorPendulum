@@ -1,0 +1,20 @@
+{
+    "asset": "ebe498321ca76894a8e4559536662087",
+    "fileName": "0198cbf5-7b86-71cb-903d-62f8ac247efa.png",
+    "prompt": "\"Pixel art style, modern office table horizontally placed, sleek black with glowing neon blue accents, futuristic cyberpunk aesthetic. The table has clean, sharp edges and a minimal design, with faint neon blue light running along its horizontal edges and legs. On top of the table, in the center, sits a glowing neon blue laptop. The whole object (table + laptop) faces left, appearing ready to fly leftward across the screen in a side-scrolling game. Background should be transparent. ",
+    "negativePrompt": "",
+    "model": "b91fcf71-f4cf-43cb-ba1e-1f22a1296e46",
+    "modelName": "8-bit Pixel",
+    "customSeed": -1,
+    "w3CTraceId": "348d88f58ad7f15ac4c8089f4f8b4bca",
+    "refinementMode": "Generation",
+    "pixelateTargetSize": 0,
+    "pixelateKeepImageSize": false,
+    "pixelatePixelBlockSize": 0,
+    "pixelateMode": 0,
+    "pixelateOutlineThickness": 0,
+    "doodles": {
+        "m_Items": []
+    },
+    "upscaleFactor": 0
+}

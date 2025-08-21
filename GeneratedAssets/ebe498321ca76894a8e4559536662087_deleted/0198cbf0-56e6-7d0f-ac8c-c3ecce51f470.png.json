@@ -1,0 +1,20 @@
+{
+    "asset": "ebe498321ca76894a8e4559536662087",
+    "fileName": "0198cbf0-56e6-7d0f-ac8c-c3ecce51f470.png",
+    "prompt": "\"Pixel art style, black and blue neon glowing computer with futuristic cyberpunk design. The computer has a sleek rectangular monitor and keyboard merged into one compact flying device. It emits soft blue neon light trails from its sides and bottom, as if hovering in the air. The sprite should face to the left, appearing ready to fly leftward across the screen in a side-scrolling game. Background should be transparent. Resolution 64x64 pixels.\"",
+    "negativePrompt": "",
+    "model": "242b56c1-2224-41c4-8949-2ba760bbfc69",
+    "modelName": "16-bit Pixel",
+    "customSeed": -1,
+    "w3CTraceId": "ead584c122b7c159e06dfd8f968f06af",
+    "refinementMode": "Generation",
+    "pixelateTargetSize": 0,
+    "pixelateKeepImageSize": false,
+    "pixelatePixelBlockSize": 0,
+    "pixelateMode": 0,
+    "pixelateOutlineThickness": 0,
+    "doodles": {
+        "m_Items": []
+    },
+    "upscaleFactor": 0
+}

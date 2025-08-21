@@ -1,0 +1,20 @@
+{
+    "asset": "0073370b4e24f9443b722d00dc671203",
+    "fileName": "0198cc07-a562-7593-83cf-99d69c86c118.jpg",
+    "prompt": "make prompt for Start Button beige color like cloud  for color matching game ",
+    "negativePrompt": "",
+    "model": "072fd6c7-1a92-4d41-b504-c46546b0dd28",
+    "modelName": "Game UI Essentials",
+    "customSeed": -1,
+    "w3CTraceId": "4abb4e22d62a0f8a51dc8074666b9cd1",
+    "refinementMode": "Generation",
+    "pixelateTargetSize": 0,
+    "pixelateKeepImageSize": false,
+    "pixelatePixelBlockSize": 0,
+    "pixelateMode": 0,
+    "pixelateOutlineThickness": 0,
+    "doodles": {
+        "m_Items": []
+    },
+    "upscaleFactor": 0
+}
