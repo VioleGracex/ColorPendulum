@@ -65,11 +65,11 @@ public class TubeManagerAutoTest : MonoBehaviour
         StartCoroutine(Test_ShiftAndChainMatch());
     }
 
-    [Button("Test Last Column Match Not Game Over")]
-    public void ButtonTest_LastColumnMatchNoGameOver()
+    [Button("Test Last Match (Any Direction, Not Game Over)")]
+    public void ButtonTest_LastMatchNotGameOver()
     {
         if (!CanRunTests()) return;
-        StartCoroutine(Test_LastColumnMatchNoGameOver());
+        StartCoroutine(Test_LastMatchNotGameOver());
     }
 
     [Button("Test Game Over")]
@@ -105,7 +105,7 @@ public class TubeManagerAutoTest : MonoBehaviour
         yield return Test_NonMatching3_LidClose();
         yield return Test_MultiColumnRowMatch();
         yield return Test_ShiftAndChainMatch();
-        yield return Test_LastColumnMatchNoGameOver();
+        yield return Test_LastMatchNotGameOver();
         yield return Test_GameOver();
         yield return Test_Cleanup();
         Debug.Log("=== TubeManager Automated Tests End ===");
@@ -114,15 +114,12 @@ public class TubeManagerAutoTest : MonoBehaviour
     private IEnumerator Test_VerticalMatch3()
     {
         Debug.Log("Test: Vertical Match-3");
-        tubeManager.ClearAllTubesAndBalls();
-        yield return WaitPhysicsFrame();
-
+        yield return CleanupAndWait();
         for (int i = 0; i < 3; i++)
         {
             Ball ball = SpawnTestBall(BallColor.Red, col: 0);
             yield return StackAndWait(ball, 0);
         }
-
         yield return new WaitForSeconds(0.5f);
         Assert(tubeManagerIsColumnEmpty(0), "Vertical match-3 did not clear column 0");
     }
@@ -130,15 +127,12 @@ public class TubeManagerAutoTest : MonoBehaviour
     private IEnumerator Test_HorizontalMatch3()
     {
         Debug.Log("Test: Horizontal Match-3");
-        tubeManager.ClearAllTubesAndBalls();
-        yield return WaitPhysicsFrame();
-
+        yield return CleanupAndWait();
         for (int col = 0; col < 3; col++)
         {
             Ball ball = SpawnTestBall(BallColor.Green, col);
             yield return StackAndWait(ball, col);
         }
-
         yield return new WaitForSeconds(0.5f);
         for (int col = 0; col < 3; col++)
             Assert(tubeManagerIsSlotEmpty(col, 0), $"Horizontal match-3 did not clear col {col}, row 0");
@@ -147,9 +141,7 @@ public class TubeManagerAutoTest : MonoBehaviour
     private IEnumerator Test_DiagonalMatch3()
     {
         Debug.Log("Test: Diagonal Match-3");
-        tubeManager.ClearAllTubesAndBalls();
-        yield return WaitPhysicsFrame();
-
+        yield return CleanupAndWait();
         var coords = new[] { (0, 0), (1, 1), (2, 2) };
         foreach (var (col, row) in coords)
         {
@@ -158,7 +150,6 @@ public class TubeManagerAutoTest : MonoBehaviour
             yield return StackAndWait(SpawnTestBall(BallColor.Blue, col), col);
         }
         yield return new WaitForSeconds(0.5f);
-
         foreach (var (col, row) in coords)
             Assert(tubeManagerIsSlotEmpty(col, row), $"Diagonal match-3 did not clear {col},{row}");
     }
@@ -166,15 +157,11 @@ public class TubeManagerAutoTest : MonoBehaviour
     private IEnumerator Test_NonMatching3_LidClose()
     {
         Debug.Log("Test: Non-matching 3 - Lid Close");
-        tubeManager.ClearAllTubesAndBalls();
-        yield return WaitPhysicsFrame();
-
+        yield return CleanupAndWait();
         BallColor[] colors = { BallColor.Red, BallColor.Green, BallColor.Blue };
         for (int i = 0; i < 3; i++)
             yield return StackAndWait(SpawnTestBall(colors[i], 1), 1);
-
         yield return new WaitForSeconds(0.5f);
-
         if (tubeManager.TryGetComponent<LidsController>(out var lids))
         {
             Assert(lids.IsLidClosed(1), "Lid was not closed on column 1");
@@ -188,9 +175,7 @@ public class TubeManagerAutoTest : MonoBehaviour
     private IEnumerator Test_MultiColumnRowMatch()
     {
         Debug.Log("Test: Multi-Lane/Column Matching");
-        tubeManager.ClearAllTubesAndBalls();
-        yield return WaitPhysicsFrame();
-
+        yield return CleanupAndWait();
         // Diagonal Green
         for (int i = 0; i < 3; i++)
         {
@@ -199,7 +184,6 @@ public class TubeManagerAutoTest : MonoBehaviour
             yield return StackAndWait(SpawnTestBall(BallColor.Green, i), i);
         }
         yield return new WaitForSeconds(0.5f);
-
         for (int i = 0; i < 3; i++)
             Assert(tubeManagerIsSlotEmpty(i, i), $"Diagonal (green) did not clear {i},{i}");
 
@@ -217,12 +201,10 @@ public class TubeManagerAutoTest : MonoBehaviour
         Assert(tubeManagerIsSlotEmpty(2, 0), "Anti-diagonal (blue) did not clear (2,0)");
     }
 
-    // This test checks shifting and chain-matching after shifting
     private IEnumerator Test_ShiftAndChainMatch()
     {
         Debug.Log("Test: Shifting and Chain Match");
-        tubeManager.ClearAllTubesAndBalls();
-        yield return WaitPhysicsFrame();
+        yield return CleanupAndWait();
 
         // Stack (from bottom to top in col 0): Red, Green, Green
         yield return StackAndWait(SpawnTestBall(BallColor.Red, 0), 0);
@@ -239,22 +221,19 @@ public class TubeManagerAutoTest : MonoBehaviour
 
         yield return new WaitForSeconds(1f);
 
-        // After clearing Green from (1,0),(1,1),(1,2), Red at (1,2) should fall to row 0
         Assert(tubeManagerIsSlotEmpty(1, 0), "After shift Red at (1,0) should be cleared (was part of a match)");
         Assert(tubeManagerIsSlotEmpty(1, 1), "After shift (1,1) should be empty");
         Assert(tubeManagerIsSlotEmpty(1, 2), "After shift (1,2) should be empty");
     }
 
-    // New test: Fill grid, then match last column, GameOver should NOT be called
-    // Also tests match-5 (horizontal and vertical simultaneously)
-    private IEnumerator Test_LastColumnMatchNoGameOver()
+    // This test checks that the last match (vertical, horizontal, diagonal) with a full grid does not trigger gameover
+    private IEnumerator Test_LastMatchNotGameOver()
     {
-        Debug.Log("Test: Last Column Match (No Game Over)");
-        tubeManager.ClearAllTubesAndBalls();
-        yield return WaitPhysicsFrame();
-
         int cols = tubeManager.columns;
         int rows = tubeManager.rows;
+        Debug.Log("Test: Last Match Not Game Over (VERTICAL)");
+        yield return CleanupAndWait();
+
         // Fill grid except last column with different colors (no matches)
         BallColor[] safeColors = { BallColor.Red, BallColor.Green, BallColor.Blue, BallColor.White };
         int colorIdx = 0;
@@ -262,55 +241,77 @@ public class TubeManagerAutoTest : MonoBehaviour
         {
             for (int row = 0; row < rows; row++)
             {
-                BallColor color = safeColors[colorIdx % safeColors.Length];
-                colorIdx++;
+                BallColor color = safeColors[colorIdx++ % safeColors.Length];
                 yield return StackAndWait(SpawnTestBall(color, col), col);
             }
         }
-        // Fill last column with 2 different colors, first row match-vertical, rest different
-        // Let's use Red for a vertical match at the bottom, then other colors above
-        for (int row = 0; row < rows; row++)
-        {
-            BallColor color;
-            if (row < 3)
-                color = BallColor.Red; // This will make a vertical match-3 at the bottom of last column
-            else
-                color = safeColors[(colorIdx++) % safeColors.Length];
-            yield return StackAndWait(SpawnTestBall(color, cols - 1), cols - 1);
-        }
-        yield return new WaitForSeconds(1f);
-
-        // Game should NOT be over, because after the match, the grid is not full
-        Assert(gameManager.state == GameState.Playing, "Game should not be over after last column match.");
-
-        // Now, fill the last column again (after match, there should be free space)
+        // Last column: stack 3 Reds for vertical match
         for (int row = 0; row < 3; row++)
-        {
             yield return StackAndWait(SpawnTestBall(BallColor.Red, cols - 1), cols - 1);
-        }
-        yield return new WaitForSeconds(1f);
 
-        // Now, fill the remaining slots (if any) with non-matching to fill the grid entirely
+        yield return new WaitForSeconds(1f);
+        Assert(gameManager.state == GameState.Playing, "VERTICAL: Game should not be over after last column match.");
+
+        Debug.Log("Test: Last Match Not Game Over (HORIZONTAL)");
+        yield return CleanupAndWait();
+
+        // Fill grid except last row with different colors (no matches)
+        colorIdx = 0;
+        for (int row = 1; row < rows; row++)
+        {
+            for (int col = 0; col < cols; col++)
+            {
+                BallColor color = safeColors[colorIdx++ % safeColors.Length];
+                yield return StackAndWait(SpawnTestBall(color, col), col);
+            }
+        }
+        // Last row: stack 3 Blues for horizontal match
+        for (int col = 0; col < cols; col++)
+            yield return StackAndWait(SpawnTestBall(BallColor.Blue, col), col);
+
+        yield return new WaitForSeconds(1f);
+        Assert(gameManager.state == GameState.Playing, "HORIZONTAL: Game should not be over after last row match.");
+
+        Debug.Log("Test: Last Match Not Game Over (DIAGONAL)");
+        yield return CleanupAndWait();
+
+        // Fill grid except diagonal
+        colorIdx = 0;
+        for (int col = 0; col < cols; col++)
+        {
+            for (int row = 0; row < rows; row++)
+            {
+                if (col == row) continue; // diagonal is left empty
+                BallColor color = safeColors[colorIdx++ % safeColors.Length];
+                yield return StackAndWait(SpawnTestBall(color, col), col);
+            }
+        }
+        // Now fill diagonal with match color
+        for (int i = 0; i < cols; i++)
+            yield return StackAndWait(SpawnTestBall(BallColor.Green, i), i);
+
+        yield return new WaitForSeconds(1f);
+        Assert(gameManager.state == GameState.Playing, "DIAGONAL: Game should not be over after diagonal match.");
+
+        // Now fill all empty slots with non-matching colors to fill grid fully (should game over now)
+        colorIdx = 0;
         for (int col = 0; col < cols; col++)
         {
             for (int row = 0; row < rows; row++)
             {
                 if (!tubeManagerIsSlotEmpty(col, row)) continue;
-                BallColor color = safeColors[(colorIdx++) % safeColors.Length];
+                BallColor color = safeColors[colorIdx++ % safeColors.Length];
                 yield return StackAndWait(SpawnTestBall(color, col), col);
             }
         }
         yield return new WaitForSeconds(0.5f);
-
-        // Now the grid is full, GameOver should be called on the next stack!
-        Assert(gameManager.state == GameState.GameOver, "Game did not end after grid filled post-match in last column.");
+        Assert(gameManager.state == GameState.GameOver, "Game did not end after grid filled post-last match.");
     }
 
     private IEnumerator Test_GameOver()
     {
         Debug.Log("Test: Game Over");
-        tubeManager.ClearAllTubesAndBalls();
-        yield return WaitPhysicsFrame();
+        yield return CleanupAndWait();
 
         // Use a pattern that guarantees no 3-in-a-row in any direction
         BallColor[,] pattern = new BallColor[3,3]
@@ -335,13 +336,19 @@ public class TubeManagerAutoTest : MonoBehaviour
 
     private IEnumerator Test_Cleanup()
     {
-        Debug.Log("Test: ClearAllTubesAndBalls");
-        tubeManager.ClearAllTubesAndBalls();
-        yield return WaitPhysicsFrame();
-        yield return new WaitForSeconds(3f);
+        Debug.Log("Test: ClearAllBalls");
+        yield return CleanupAndWait();
+        yield return new WaitForSeconds(1f);
 
-        Assert(FindObjectsByType<Ball>(FindObjectsSortMode.None).Length == 0, "ClearAllTubesAndBalls did not remove all balls");
+        Assert(FindObjectsByType<Ball>(FindObjectsSortMode.None).Length == 0, "ClearAllBalls did not remove all balls");
         gameManager.OnMenuButtonClicked();
+    }
+
+    private IEnumerator CleanupAndWait()
+    {
+        tubeManager.ClearAllBalls();
+        yield return WaitPhysicsFrame();
+        yield return new WaitForSeconds(0.2f);
     }
 
     private Ball SpawnTestBall(BallColor color, int col)

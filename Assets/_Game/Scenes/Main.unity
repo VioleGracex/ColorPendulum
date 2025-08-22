@@ -571,7 +571,7 @@ MonoBehaviour:
     m_Right: 0
     m_Top: 0
     m_Bottom: 0
-  m_ChildAlignment: 4
+  m_ChildAlignment: 3
   m_Spacing: 0
   m_ChildForceExpandWidth: 1
   m_ChildForceExpandHeight: 1
@@ -841,9 +841,10 @@ MonoBehaviour:
   tubeLandShakeStrength: 0.3
   tubeLandShakeDuration: 0.2
   holeObject: {fileID: 1967883224}
-  mainMenuPanel: {fileID: 1259627831}
-  gamePanel: {fileID: 577220837}
-  gameOverPanel: {fileID: 1455191759}
+  panels:
+    mainMenuPanel: {fileID: 1259627831}
+    gamePanel: {fileID: 577220837}
+    gameOverPanel: {fileID: 1455191759}
   startButton: {fileID: 219890677}
   replayButton: {fileID: 1455191758}
   menuButton: {fileID: 1455191757}

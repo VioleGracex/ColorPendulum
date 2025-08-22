@@ -4,7 +4,6 @@ using System;
 using DG.Tweening;
 using TMPro;
 
-
 public class UIManager : MonoBehaviour
 {
 #region Fields
@@ -27,9 +26,7 @@ public class UIManager : MonoBehaviour
     [SerializeField] GameObject holeObject;
 
     [Header("Panels")]
-    [SerializeField] GameObject mainMenuPanel;
-    [SerializeField] GameObject gamePanel;
-    [SerializeField] GameObject gameOverPanel;
+    [SerializeField] public UIPanels panels;
 
     [Header("Buttons")]
     [SerializeField] Button startButton;
@@ -43,9 +40,12 @@ public class UIManager : MonoBehaviour
     [Header("Tube Offsets")]
     [SerializeField] Vector2 tubeSpawnOffset = Vector2.zero;
     [SerializeField] Vector2 tubeDropOffset = Vector2.zero;
-    #endregion
 
-    #region UI Methods
+    [Header("Next Balls UI")]
+    [SerializeField] private Image[] nextBallImages; // Assign 3 UI Images in Inspector
+#endregion
+
+#region UI Methods
     public void UpdateScore(int score)
     {
         if (scoreText == null) return;
@@ -75,15 +75,13 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    [Header("Next Balls UI")]
-    [SerializeField] private Image[] nextBallImages; // Assign 3 UI Images in Inspector
-
     public void UpdateNextBalls(BallColor[] nextColors)
     {
+        // To Do : fix or remove animation
         if (nextBallImages == null) return;
         for (int i = 0; i < nextBallImages.Length; i++)
         {
-            if (i < nextColors.Length)
+            if (i < nextColors.Length && nextColors[i] != BallColor.None)
             {
                 nextBallImages[i].gameObject.SetActive(true);
                 nextBallImages[i].color = nextColors[i].ToColor();
@@ -109,22 +107,29 @@ public class UIManager : MonoBehaviour
 
     public void ShowGameUI(int score)
     {
-        if (mainMenuPanel != null) mainMenuPanel.SetActive(false);
-        if (gamePanel != null) gamePanel.SetActive(true);
-        if (gameOverPanel != null) gameOverPanel.SetActive(false);
+        ShowOnlyPanel(panels.gamePanel);
         UpdateScore(score);
     }
 
     public void ShowGameOver(int score)
     {
-        if (gamePanel != null) gamePanel.SetActive(false);
-        if (gameOverPanel != null) gameOverPanel.SetActive(true);
+        ShowOnlyPanel(panels.gameOverPanel);
         if (finalScoreText != null)
             finalScoreText.text = $"Final Score: {score}";
     }
-    #endregion
 
-    #region Unity Events
+    // Call this to enable only the specified panel and disable all others
+    public void ShowOnlyPanel(GameObject panelToShow)
+    {
+        if (panels.mainMenuPanel != null) panels.mainMenuPanel.SetActive(false);
+        if (panels.gamePanel != null) panels.gamePanel.SetActive(false);
+        if (panels.gameOverPanel != null) panels.gameOverPanel.SetActive(false);
+        if (panelToShow != null) panelToShow.SetActive(true);
+    }
+#endregion
+
+#region Unity Events
+
     private void Awake()
     {
         Instance = this;
@@ -137,9 +142,7 @@ public class UIManager : MonoBehaviour
 #region UI Panel Methods
     public void ShowMainMenu()
     {
-        if (mainMenuPanel != null) mainMenuPanel.SetActive(true);
-        if (gamePanel != null) gamePanel.SetActive(false);
-        if (gameOverPanel != null) gameOverPanel.SetActive(false);
+        ShowOnlyPanel(panels.mainMenuPanel);
 
         // Animate tubes and start button dropping from above
         Camera cam = overrideCamera != null ? overrideCamera : Camera.main;
@@ -180,7 +183,6 @@ public class UIManager : MonoBehaviour
             }
         }
     }
-
 #endregion
 
 #region Animation Methods
@@ -189,7 +191,7 @@ public class UIManager : MonoBehaviour
         // Animate start button falling
         startButton.transform.DOMoveY(-Screen.height, 0.5f).OnComplete(() =>
         {
-            mainMenuPanel?.SetActive(false);
+            ShowOnlyPanel(null); // Hide all panels
             // Spawn and animate the single tubes object
             SpawnAndDropTubes(onComplete);
         });

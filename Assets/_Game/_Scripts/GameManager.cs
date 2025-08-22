@@ -5,7 +5,8 @@ public enum GameState
     MainMenu,
     AnimatingIn,
     Playing,
-    GameOver
+    GameOver,
+    Cleaning,
 }
 
 public class GameManager : MonoBehaviour
@@ -51,16 +52,16 @@ public class GameManager : MonoBehaviour
     public void StartGame()
     {
         // Reset all game state
-        state = GameState.Playing;
         score = 0;
         currentHearts = maxHearts;
 
     // Reset UI
-    uiManager?.ShowGameUI(score);
-    uiManager?.UpdateHearts(currentHearts, maxHearts);
+        uiManager?.ShowGameUI(score);
+        uiManager?.UpdateHearts(currentHearts, maxHearts);
 
         // Reset grid and balls
-        tubeManager?.ClearAllTubesAndBalls();
+        tubeManager?.ClearAllBalls();
+        state = GameState.Playing;
         // Reset ball spawner
         ballSpawner?.InitAndSpawnFirst();
     }
@@ -102,6 +103,6 @@ public class GameManager : MonoBehaviour
     {
         state = GameState.MainMenu;
         uiManager?.ShowMainMenu();
-        tubeManager?.ClearAllTubesAndBalls();
+        tubeManager?.ClearAllBalls();
     }
 }

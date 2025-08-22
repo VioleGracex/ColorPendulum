@@ -1,4 +1,3 @@
-
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
@@ -40,7 +39,6 @@ public class TubeManager : MonoBehaviour
     private float overlapCheckTimer = 0f;
     [SerializeField]
     private BallSpawner ballSpawner;
-    
 
     #region === Unity Lifecycle ===
     private void Awake()
@@ -52,6 +50,9 @@ public class TubeManager : MonoBehaviour
     private bool shiftingInProgress = false;
     private void Update()
     {
+        if(GameManager.Instance.state != GameState.Playing)
+            return;
+
         overlapCheckTimer += Time.deltaTime;
         if (overlapCheckTimer >= overlapCheckInterval)
         {
@@ -216,7 +217,6 @@ public class TubeManager : MonoBehaviour
             ballRestingFrames.Remove(b);
     }
 
-
     public IEnumerator StackBallSmoothly(Ball ball, int col)
     {
         // Find first empty row in this column
@@ -268,6 +268,7 @@ public class TubeManager : MonoBehaviour
         // Matching logic
         List<(int, int)> matched = GridChecker.GetMatchedBalls(grid, col, assignedRow);
         bool matchFound = matched.Count >= 3;
+        List<Coroutine> destructionCoroutines = new List<Coroutine>();
         if (matchFound)
         {
             // Detect match types for multiplier
@@ -310,7 +311,8 @@ public class TubeManager : MonoBehaviour
                 if (b2 != null)
                 {
                     score += GetScoreForColor(b2.color);
-                    b2.PlayClearEffect();
+                    // Await PlayClearEffect by starting a coroutine and tracking them
+                    destructionCoroutines.Add(StartCoroutine(WaitForBallDestruction(b2)));
                     grid[x, y] = null;
                 }
             }
@@ -328,38 +330,103 @@ public class TubeManager : MonoBehaviour
 
             GameManager.Instance.AddScore(score * multiplier);
 
+            // Wait for all destruction coroutines to finish
+            foreach (var co in destructionCoroutines)
+                yield return co;
+
             // Animate balls falling into empty slots before updating grid
             yield return StartCoroutine(ShiftBallsDownSmoothly());
 
             // Update grid after destruction and shifting
             UpdateGridByOverlap();
+
+            // After all clears and shifting: check for new matches & cascade
+            // This is important for the "last row" scenario to avoid premature game over.
+            // Check for any new matches and clear them recursively BEFORE checking for lose.
+
+            while (true)
+            {
+                var matchInfo = FindAnyMatch();
+                if (matchInfo.matchFound)
+                {
+                    // Start clear and shift for this match
+                    List<Coroutine> moreDestruction = new List<Coroutine>();
+                    foreach (var (mx, my) in matchInfo.matched)
+                    {
+                        Ball mb = grid[mx, my];
+                        if (mb != null)
+                        {
+                            moreDestruction.Add(StartCoroutine(WaitForBallDestruction(mb)));
+                            grid[mx, my] = null;
+                        }
+                    }
+                    foreach (var co in moreDestruction)
+                        yield return co;
+                    yield return StartCoroutine(ShiftBallsDownSmoothly());
+                    UpdateGridByOverlap();
+                }
+                else
+                {
+                    break;
+                }
+            }
         }
 
+        // After ALL matching/cascades are done, check for losing/game over
+        CheckForLoseCondition();
 
-        // Always update lids after stacking and any possible match/clear, and after grid is updated and balls are cleared
-        UpdateAllLids();
-
-        // Game Over Check
-        if (IsGridFull() && !matchFound)
-        {
-            GameManager.Instance.GameOver();
-            yield break;
-        }
-        else if (IsGridFull() && matchFound)
-        {
-            Debug.Log("[TubeManager] Special case: Grid is full but a match was found.");
-            UpdateAllLids();
-            // Handle special case where grid is full and a match was found
-        }
-
-        // Always spawn next ball if game is still playing (after all clears/lids)
-        /* if (!ballSpawner)
-            ballSpawner = FindFirstObjectByType<BallSpawner>();
-        if (GameManager.Instance != null && GameManager.Instance.state == GameState.Playing)
-            ballSpawner?.SpawnNextBall(); */
     }
 
-    // Updates all lids for all columns based on current grid state
+    /// <summary>
+    /// Waits until the given ball is fully cleared/destroyed.
+    /// If PlayClearEffect is a coroutine, yield return it. Otherwise, wait until the GameObject is null.
+    /// </summary>
+    private IEnumerator WaitForBallDestruction(Ball ball)
+    {
+        if (ball != null)
+            ball.PlayClearEffect();
+        while (ball != null && ball.gameObject != null)
+            yield return null;
+    }
+
+    /// <summary>
+    /// Checks for game over/lose condition after all clears and shifts.
+    /// </summary>
+    private void CheckForLoseCondition()
+    {
+        if (IsGridFull() && GameManager.Instance.state != GameState.GameOver)
+        {
+            // Double-check: is there any match available on the board?
+            var matchInfo = FindAnyMatch();
+            if (!matchInfo.matchFound)
+            {
+                GameManager.Instance.GameOver();
+            }
+            else
+            {
+                // There is still a match! Do not game over, let it clear next frame.
+            }
+        }
+    }
+
+    // Returns (matchFound, matched) for the first match found, or (false, empty) if none.
+    private (bool matchFound, List<(int, int)> matched) FindAnyMatch()
+    {
+        for (int col = 0; col < columns; col++)
+        {
+            for (int row = 0; row < rows; row++)
+            {
+                Ball b = grid[col, row];
+                if (b == null) continue;
+                var matched = GridChecker.GetMatchedBalls(grid, col, row);
+                if (matched.Count >= 3)
+                    return (true, matched);
+            }
+        }
+        return (false, new List<(int, int)>());
+    }
+
+     // Updates all lids for all columns based on current grid state
     private void UpdateAllLids()
     {
         if (lidsController == null)
@@ -477,7 +544,6 @@ public class TubeManager : MonoBehaviour
         }
     }
 
-
     public bool IsGridFull()
     {
         for (int x = 0; x < columns; x++)
@@ -487,7 +553,6 @@ public class TubeManager : MonoBehaviour
         }
         return true;
     }
-
 
     #region === Utility Methods ===
     private Vector3 GetLaneCenter(int col)
@@ -527,19 +592,23 @@ public class TubeManager : MonoBehaviour
     /// <summary>
     /// Clears all tubes, destroys all balls, resets all state. Call when returning to menu.
     /// </summary>
-    public void ClearAllTubesAndBalls()
+    public void ClearAllBalls()
     {
+        GameManager.Instance.state = GameState.Cleaning;
+        // Clear grid first to prevent GameOver from being called again
+        grid = new Ball[columns, rows];
         // Destroy all balls
         var allBalls = FindObjectsByType<Ball>(FindObjectsSortMode.None);
         foreach (var ball in allBalls)
         {
-            ball.PlayClearEffect();
+            //ball.PlayClearEffect();
+            Destroy(ball.gameObject);
         }
         // Reset all containers
-        grid = new Ball[columns, rows];
         stackedBalls.Clear();
         stackingInProgress.Clear();
         ballRestingFrames.Clear();
+        
     }
     #endregion
     #endregion

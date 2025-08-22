@@ -3,7 +3,8 @@ public enum BallColor
     Red,
     Green,
     Blue,
-    White
+    White,
+    None,
 }
 
 public static class BallColorExtensions
