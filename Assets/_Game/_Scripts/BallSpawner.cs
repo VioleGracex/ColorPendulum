@@ -85,20 +85,22 @@ public class BallSpawner : MonoBehaviour
             }
 
             BallColor color = ballQueue.Dequeue();
+
+            // Always update the next balls UI after using a ball
             UpdateNextBallUI();
 
 
             // Animate ball coming out of hole with scale
             Vector3 spawnPos = spawnHole.position;
             GameObject ballObj = Instantiate(ballPrefab, spawnPos + Vector3.up * 1.5f, Quaternion.identity);
+            Ball ball = ballObj.GetComponent<Ball>();
+            ball.SetColor(color); // Set color immediately, before any animation
             ballObj.transform.localScale = Vector3.zero;
             canBreakJoint = false;
             ballObj.transform.DOMove(spawnPos, 0.25f).SetEase(Ease.OutBack).OnComplete(() =>
             {
                 ballObj.transform.DOScale(Vector3.one, 0.2f).SetEase(Ease.OutBack).OnComplete(() =>
                 {
-                    Ball ball = ballObj.GetComponent<Ball>();
-                    ball.SetColor(color);
                     currentBall = ball;
                     waitingForPlacement = true;
 

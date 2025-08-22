@@ -1,5 +1,6 @@
 using UnityEngine;
 using DG.Tweening;
+using System.Threading.Tasks;
 
 public class Ball : MonoBehaviour
 {
@@ -34,21 +35,38 @@ public class Ball : MonoBehaviour
 
     // Collision-based stacking removed. TubeManager will use overlap checks instead.
 
-    public void PlayClearEffect()
+    public async Task PlayClearEffectAsync()
     {
         ParticleSystem effectToPlay = clearEffect;
         if (effectToPlay == null && clearEffectPrefab != null)
         {
             effectToPlay = Instantiate(clearEffectPrefab, transform.position, Quaternion.identity);
         }
+        float particleDuration = 0f;
         if (effectToPlay != null)
         {
             effectToPlay.transform.SetParent(null);
             effectToPlay.Play();
-            Destroy(effectToPlay.gameObject, effectToPlay.main.duration);
+            particleDuration = effectToPlay.main.duration;
         }
 
-        // Play DOTween scale animation before destroying the ball
-        transform.DOScale(Vector3.zero, 0.2f).SetEase(Ease.InBack).OnComplete(() => Destroy(gameObject));
+        // Play DOTween scale animation and await it
+        var tcs = new System.Threading.Tasks.TaskCompletionSource<bool>();
+        transform.DOScale(Vector3.zero, 0.2f).SetEase(Ease.InBack).OnComplete(() => tcs.SetResult(true));
+        await tcs.Task;
+
+        // Wait for the particle effect to finish (if any)
+        if (particleDuration > 0f)
+            await System.Threading.Tasks.Task.Delay((int)(particleDuration * 1000));
+
+        if (effectToPlay != null)
+            Destroy(effectToPlay.gameObject);
+        Destroy(gameObject);
+    }
+
+    // For legacy calls
+    public void PlayClearEffect()
+    {
+        _ = PlayClearEffectAsync();
     }
 }

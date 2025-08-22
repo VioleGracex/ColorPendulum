@@ -312,15 +312,19 @@ public class TubeManagerAutoTest : MonoBehaviour
         tubeManager.ClearAllTubesAndBalls();
         yield return WaitPhysicsFrame();
 
-        BallColor[] colors = { BallColor.Red, BallColor.Green, BallColor.Blue, BallColor.White };
-        int colorIndex = 0;
+        // Use a pattern that guarantees no 3-in-a-row in any direction
+        BallColor[,] pattern = new BallColor[3,3]
+        {
+            { BallColor.Red,   BallColor.Green, BallColor.Blue },
+            { BallColor.Green, BallColor.White,  BallColor.Red  },
+            { BallColor.White,  BallColor.Red,   BallColor.Green }
+        };
 
         for (int row = 0; row < tubeManager.rows; row++)
         {
             for (int col = 0; col < tubeManager.columns; col++)
             {
-                BallColor color = colors[colorIndex % colors.Length];
-                colorIndex++;
+                BallColor color = pattern[row, col];
                 yield return StackAndWait(SpawnTestBall(color, col), col);
             }
         }

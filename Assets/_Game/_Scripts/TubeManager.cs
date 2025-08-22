@@ -65,6 +65,7 @@ public class TubeManager : MonoBehaviour
         {
             StartCoroutine(ShiftBallsDownSmoothlyAuto());
         }
+        UpdateAllLids();
     }
 
     // Returns true if any ball is above an empty slot in its column
@@ -334,7 +335,8 @@ public class TubeManager : MonoBehaviour
             UpdateGridByOverlap();
         }
 
-        // Always update lids after stacking and any possible match/clear
+
+        // Always update lids after stacking and any possible match/clear, and after grid is updated and balls are cleared
         UpdateAllLids();
 
         // Game Over Check
@@ -342,6 +344,12 @@ public class TubeManager : MonoBehaviour
         {
             GameManager.Instance.GameOver();
             yield break;
+        }
+        else if (IsGridFull() && matchFound)
+        {
+            Debug.Log("[TubeManager] Special case: Grid is full but a match was found.");
+            UpdateAllLids();
+            // Handle special case where grid is full and a match was found
         }
 
         // Always spawn next ball if game is still playing (after all clears/lids)
