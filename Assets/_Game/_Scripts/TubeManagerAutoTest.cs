@@ -235,7 +235,7 @@ public class TubeManagerAutoTest : MonoBehaviour
         yield return CleanupAndWait();
 
         // Fill grid except last column with different colors (no matches)
-        BallColor[] safeColors = { BallColor.Red, BallColor.Green, BallColor.Blue, BallColor.White };
+        BallColor[] safeColors = { BallColor.Red, BallColor.Green, BallColor.Blue, BallColor.Magenta};
         int colorIdx = 0;
         for (int col = 0; col < cols - 1; col++)
         {
@@ -317,8 +317,8 @@ public class TubeManagerAutoTest : MonoBehaviour
         BallColor[,] pattern = new BallColor[3,3]
         {
             { BallColor.Red,   BallColor.Green, BallColor.Blue },
-            { BallColor.Green, BallColor.White,  BallColor.Red  },
-            { BallColor.White,  BallColor.Red,   BallColor.Green }
+            { BallColor.Green, BallColor.Magenta,  BallColor.Red  },
+            { BallColor.Magenta,  BallColor.Red,   BallColor.Green }
         };
 
         for (int row = 0; row < tubeManager.rows; row++)

@@ -49,7 +49,7 @@ public class UIManager : MonoBehaviour
     public void UpdateScore(int score)
     {
         if (scoreText == null) return;
-        scoreText.text = $"Score: {score}";
+        scoreText.text = $"Очки: {score}";
     }
 
     public void UpdateHearts(int current, int max)
@@ -77,7 +77,6 @@ public class UIManager : MonoBehaviour
 
     public void UpdateNextBalls(BallColor[] nextColors)
     {
-        // To Do : fix or remove animation
         if (nextBallImages == null) return;
         for (int i = 0; i < nextBallImages.Length; i++)
         {
@@ -85,18 +84,11 @@ public class UIManager : MonoBehaviour
             {
                 nextBallImages[i].gameObject.SetActive(true);
                 nextBallImages[i].color = nextColors[i].ToColor();
-
-                // Animate: move in from right, rotate, scale up
+                // Reset transform for layout group compatibility
                 RectTransform rt = nextBallImages[i].rectTransform;
-                rt.DOKill(); // Stop any previous tweens
-                Vector3 startPos = rt.anchoredPosition + new Vector2(200f, 0f); // 200px to the right
-                rt.anchoredPosition = startPos;
-                rt.localRotation = Quaternion.Euler(0, 0, 90f);
-                rt.localScale = Vector3.one * 0.5f;
-                float delay = 0.05f * i;
-                rt.DOAnchorPos(rt.anchoredPosition - new Vector2(200f, 0f), 0.35f).SetEase(Ease.OutBack).SetDelay(delay);
-                rt.DORotate(Vector3.zero, 0.35f).SetEase(Ease.OutBack).SetDelay(delay);
-                rt.DOScale(1f, 0.35f).SetEase(Ease.OutBack).SetDelay(delay);
+                rt.localScale = Vector3.one;
+                rt.localRotation = Quaternion.identity;
+                rt.anchoredPosition = Vector2.zero;
             }
             else
             {
@@ -115,7 +107,7 @@ public class UIManager : MonoBehaviour
     {
         ShowOnlyPanel(panels.gameOverPanel);
         if (finalScoreText != null)
-            finalScoreText.text = $"Final Score: {score}";
+            finalScoreText.text = $"Итоговый счет: {score}";
     }
 
     // Call this to enable only the specified panel and disable all others

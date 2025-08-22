@@ -3,7 +3,7 @@ public enum BallColor
     Red,
     Green,
     Blue,
-    White,
+    Magenta,
     None,
 }
 
@@ -19,10 +19,10 @@ public static class BallColorExtensions
                 return UnityEngine.Color.green;
             case BallColor.Blue:
                 return UnityEngine.Color.blue;
-            case BallColor.White:
-                return UnityEngine.Color.white;
+            case BallColor.Magenta:
+                return UnityEngine.Color.magenta;
             default:
-                return UnityEngine.Color.white;
+                return UnityEngine.Color.magenta;
         }
     }
 }
