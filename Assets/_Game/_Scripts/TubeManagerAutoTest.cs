@@ -58,6 +58,20 @@ public class TubeManagerAutoTest : MonoBehaviour
         StartCoroutine(Test_MultiColumnRowMatch());
     }
 
+    [Button("Test Shift and Chain Matching")]
+    public void ButtonTest_ShiftAndChainMatch()
+    {
+        if (!CanRunTests()) return;
+        StartCoroutine(Test_ShiftAndChainMatch());
+    }
+
+    [Button("Test Last Column Match Not Game Over")]
+    public void ButtonTest_LastColumnMatchNoGameOver()
+    {
+        if (!CanRunTests()) return;
+        StartCoroutine(Test_LastColumnMatchNoGameOver());
+    }
+
     [Button("Test Game Over")]
     public void ButtonTest_GameOver()
     {
@@ -70,13 +84,6 @@ public class TubeManagerAutoTest : MonoBehaviour
     {
         if (!CanRunTests()) return;
         StartCoroutine(Test_Cleanup());
-    }
-
-    [Button("Test Shift and Chain Matching")]
-    public void ButtonTest_ShiftAndChainMatch()
-    {
-        if (!CanRunTests()) return;
-        StartCoroutine(Test_ShiftAndChainMatch());
     }
 
     private bool CanRunTests()
@@ -98,6 +105,7 @@ public class TubeManagerAutoTest : MonoBehaviour
         yield return Test_NonMatching3_LidClose();
         yield return Test_MultiColumnRowMatch();
         yield return Test_ShiftAndChainMatch();
+        yield return Test_LastColumnMatchNoGameOver();
         yield return Test_GameOver();
         yield return Test_Cleanup();
         Debug.Log("=== TubeManager Automated Tests End ===");
@@ -235,6 +243,67 @@ public class TubeManagerAutoTest : MonoBehaviour
         Assert(tubeManagerIsSlotEmpty(1, 0), "After shift Red at (1,0) should be cleared (was part of a match)");
         Assert(tubeManagerIsSlotEmpty(1, 1), "After shift (1,1) should be empty");
         Assert(tubeManagerIsSlotEmpty(1, 2), "After shift (1,2) should be empty");
+    }
+
+    // New test: Fill grid, then match last column, GameOver should NOT be called
+    // Also tests match-5 (horizontal and vertical simultaneously)
+    private IEnumerator Test_LastColumnMatchNoGameOver()
+    {
+        Debug.Log("Test: Last Column Match (No Game Over)");
+        tubeManager.ClearAllTubesAndBalls();
+        yield return WaitPhysicsFrame();
+
+        int cols = tubeManager.columns;
+        int rows = tubeManager.rows;
+        // Fill grid except last column with different colors (no matches)
+        BallColor[] safeColors = { BallColor.Red, BallColor.Green, BallColor.Blue, BallColor.White };
+        int colorIdx = 0;
+        for (int col = 0; col < cols - 1; col++)
+        {
+            for (int row = 0; row < rows; row++)
+            {
+                BallColor color = safeColors[colorIdx % safeColors.Length];
+                colorIdx++;
+                yield return StackAndWait(SpawnTestBall(color, col), col);
+            }
+        }
+        // Fill last column with 2 different colors, first row match-vertical, rest different
+        // Let's use Red for a vertical match at the bottom, then other colors above
+        for (int row = 0; row < rows; row++)
+        {
+            BallColor color;
+            if (row < 3)
+                color = BallColor.Red; // This will make a vertical match-3 at the bottom of last column
+            else
+                color = safeColors[(colorIdx++) % safeColors.Length];
+            yield return StackAndWait(SpawnTestBall(color, cols - 1), cols - 1);
+        }
+        yield return new WaitForSeconds(1f);
+
+        // Game should NOT be over, because after the match, the grid is not full
+        Assert(gameManager.state == GameState.Playing, "Game should not be over after last column match.");
+
+        // Now, fill the last column again (after match, there should be free space)
+        for (int row = 0; row < 3; row++)
+        {
+            yield return StackAndWait(SpawnTestBall(BallColor.Red, cols - 1), cols - 1);
+        }
+        yield return new WaitForSeconds(1f);
+
+        // Now, fill the remaining slots (if any) with non-matching to fill the grid entirely
+        for (int col = 0; col < cols; col++)
+        {
+            for (int row = 0; row < rows; row++)
+            {
+                if (!tubeManagerIsSlotEmpty(col, row)) continue;
+                BallColor color = safeColors[(colorIdx++) % safeColors.Length];
+                yield return StackAndWait(SpawnTestBall(color, col), col);
+            }
+        }
+        yield return new WaitForSeconds(0.5f);
+
+        // Now the grid is full, GameOver should be called on the next stack!
+        Assert(gameManager.state == GameState.GameOver, "Game did not end after grid filled post-match in last column.");
     }
 
     private IEnumerator Test_GameOver()

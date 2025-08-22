@@ -338,7 +338,7 @@ public class TubeManager : MonoBehaviour
         UpdateAllLids();
 
         // Game Over Check
-        if (IsGridFull())
+        if (IsGridFull() && !matchFound)
         {
             GameManager.Instance.GameOver();
             yield break;

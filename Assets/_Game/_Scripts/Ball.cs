@@ -7,6 +7,7 @@ public class Ball : MonoBehaviour
     public SpriteRenderer spriteRenderer;
     // public Sprite[] colorSprites; // No longer needed
     public ParticleSystem clearEffect;
+    public ParticleSystem clearEffectPrefab; // Assign this in the inspector if you want a default effect
 
     // True if this ball has been successfully stacked in a tube
     public bool placedInTube = false;
@@ -35,12 +36,16 @@ public class Ball : MonoBehaviour
 
     public void PlayClearEffect()
     {
-        if (clearEffect != null)
+        ParticleSystem effectToPlay = clearEffect;
+        if (effectToPlay == null && clearEffectPrefab != null)
         {
-            // Detach the particle effect so it persists after the ball is destroyed
-            clearEffect.transform.SetParent(null);
-            clearEffect.Play();
-            Destroy(clearEffect.gameObject, clearEffect.main.duration);
+            effectToPlay = Instantiate(clearEffectPrefab, transform.position, Quaternion.identity);
+        }
+        if (effectToPlay != null)
+        {
+            effectToPlay.transform.SetParent(null);
+            effectToPlay.Play();
+            Destroy(effectToPlay.gameObject, effectToPlay.main.duration);
         }
 
         // Play DOTween scale animation before destroying the ball
