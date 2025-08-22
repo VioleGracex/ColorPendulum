@@ -157,7 +157,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Ball
   color: 0
   spriteRenderer: {fileID: 4050712083832917515}
-  clearEffect: {fileID: 8515390974728875655, guid: bc558fb188b04fa4c86aced210849161, type: 3}
+  clearEffect: {fileID: 0}
+  clearEffectPrefab: {fileID: 8515390974728875655, guid: bc558fb188b04fa4c86aced210849161, type: 3}
   placedInTube: 0
 --- !u!58 &5716942412453481914
 CircleCollider2D:

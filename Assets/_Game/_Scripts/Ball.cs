@@ -6,8 +6,8 @@ public class Ball : MonoBehaviour
     public BallColor color;
     public SpriteRenderer spriteRenderer;
     // public Sprite[] colorSprites; // No longer needed
-    public ParticleSystem clearEffect;
-    public ParticleSystem clearEffectPrefab; // Assign this in the inspector if you want a default effect
+    ParticleSystem clearEffect;
+    [SerializeField] ParticleSystem clearEffectPrefab; // Assign this in the inspector if you want a default effect
 
     // True if this ball has been successfully stacked in a tube
     public bool placedInTube = false;
