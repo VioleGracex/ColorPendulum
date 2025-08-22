@@ -4,18 +4,23 @@ using System;
 using DG.Tweening;
 using TMPro;
 
+
 public class UIManager : MonoBehaviour
 {
+#region Fields
+    [Header("Hearts UI")]
+    [SerializeField] Image[] heartImages; // Assign heart images in inspector (optional)
+
     [Header("Camera Override")]
     [SerializeField] Camera overrideCamera;
+
     [Header("Tube Animation")]
     [SerializeField] GameObject tubesprefab;
-    // tubeDropYOffset removed; use tubeSpawnOffset/tubeDropOffset instead
-    [SerializeField] float tubeDropDuration = 0.5f;
-    [SerializeField] float tubeDropStagger = 0.1f;
-    [SerializeField] float tubeLandShakeStrength = 0.3f;
-    [SerializeField] float tubeLandShakeDuration = 0.2f;
-    GameObject spawnedTubes;
+    [SerializeField] private float tubeDropDuration = 0.5f;
+    [SerializeField] private float tubeDropStagger = 0.1f;
+    [SerializeField] private float tubeLandShakeStrength = 0.3f;
+    [SerializeField] private float tubeLandShakeDuration = 0.2f;
+    private GameObject spawnedTubes;
     public static UIManager Instance;
 
     [Header("Hole Animation")]
@@ -38,16 +43,98 @@ public class UIManager : MonoBehaviour
     [Header("Tube Offsets")]
     [SerializeField] Vector2 tubeSpawnOffset = Vector2.zero;
     [SerializeField] Vector2 tubeDropOffset = Vector2.zero;
+    #endregion
 
+    #region UI Methods
+    public void UpdateScore(int score)
+    {
+        if (scoreText == null) return;
+        scoreText.text = $"Score: {score}";
+    }
+
+    public void UpdateHearts(int current, int max)
+    {
+        if (heartImages != null && heartImages.Length > 0)
+        {
+            for (int i = 0; i < heartImages.Length; i++)
+            {
+                if (i < max)
+                {
+                    heartImages[i].gameObject.SetActive(true);
+                    heartImages[i].color = i < current ? Color.white : new Color(1,1,1,0.2f); // faded if lost
+                }
+                else
+                {
+                    heartImages[i].gameObject.SetActive(false);
+                }
+            }
+        }
+        else
+        {
+            Debug.Log($"[UIManager] Hearts: {current}/{max}");
+        }
+    }
+
+    [Header("Next Balls UI")]
+    [SerializeField] private Image[] nextBallImages; // Assign 3 UI Images in Inspector
+
+    public void UpdateNextBalls(BallColor[] nextColors)
+    {
+        if (nextBallImages == null) return;
+        for (int i = 0; i < nextBallImages.Length; i++)
+        {
+            if (i < nextColors.Length)
+            {
+                nextBallImages[i].gameObject.SetActive(true);
+                nextBallImages[i].color = nextColors[i].ToColor();
+
+                // Animate: move in from right, rotate, scale up
+                RectTransform rt = nextBallImages[i].rectTransform;
+                rt.DOKill(); // Stop any previous tweens
+                Vector3 startPos = rt.anchoredPosition + new Vector2(200f, 0f); // 200px to the right
+                rt.anchoredPosition = startPos;
+                rt.localRotation = Quaternion.Euler(0, 0, 90f);
+                rt.localScale = Vector3.one * 0.5f;
+                float delay = 0.05f * i;
+                rt.DOAnchorPos(rt.anchoredPosition - new Vector2(200f, 0f), 0.35f).SetEase(Ease.OutBack).SetDelay(delay);
+                rt.DORotate(Vector3.zero, 0.35f).SetEase(Ease.OutBack).SetDelay(delay);
+                rt.DOScale(1f, 0.35f).SetEase(Ease.OutBack).SetDelay(delay);
+            }
+            else
+            {
+                nextBallImages[i].gameObject.SetActive(false);
+            }
+        }
+    }
+
+    public void ShowGameUI(int score)
+    {
+        if (mainMenuPanel != null) mainMenuPanel.SetActive(false);
+        if (gamePanel != null) gamePanel.SetActive(true);
+        if (gameOverPanel != null) gameOverPanel.SetActive(false);
+        UpdateScore(score);
+    }
+
+    public void ShowGameOver(int score)
+    {
+        if (gamePanel != null) gamePanel.SetActive(false);
+        if (gameOverPanel != null) gameOverPanel.SetActive(true);
+        if (finalScoreText != null)
+            finalScoreText.text = $"Final Score: {score}";
+    }
+    #endregion
+
+    #region Unity Events
     private void Awake()
     {
         Instance = this;
-
         startButton?.onClick.AddListener(() => GameManager.Instance.OnStartButtonClicked());
         replayButton?.onClick.AddListener(() => GameManager.Instance.OnReplayButtonClicked());
         menuButton?.onClick.AddListener(() => GameManager.Instance.OnMenuButtonClicked());
     }
+#endregion
 
+#region UI Panel Methods
     public void ShowMainMenu()
     {
         if (mainMenuPanel != null) mainMenuPanel.SetActive(true);
@@ -58,15 +145,17 @@ public class UIManager : MonoBehaviour
         Camera cam = overrideCamera != null ? overrideCamera : Camera.main;
         if (cam != null)
         {
-            // Tubes animation
+            // Tubes animation: if spawnedTubes exists, animate it falling and destroy
             if (spawnedTubes != null)
             {
                 float camHeight = 2f * cam.orthographicSize;
-                float yTarget = cam.transform.position.y - cam.orthographicSize + tubeDropOffset.y;
-                float yStart = cam.transform.position.y + camHeight / 2f + tubeSpawnOffset.y;
-                Vector3 startPos = new Vector3(spawnedTubes.transform.position.x, yStart, spawnedTubes.transform.position.z);
-                spawnedTubes.transform.position = startPos;
-                spawnedTubes.transform.DOMoveY(yTarget, tubeDropDuration).SetEase(Ease.OutBounce);
+                float yFall = cam.transform.position.y - cam.orthographicSize - 3f; // fall below screen
+                spawnedTubes.transform.DOScaleY(0.7f, 0.4f).SetEase(Ease.InBack);
+                spawnedTubes.transform.DOMoveY(yFall, 0.5f).SetEase(Ease.InBack).OnComplete(() =>
+                {
+                    Destroy(spawnedTubes);
+                    spawnedTubes = null;
+                });
             }
 
             // Start button animation
@@ -92,6 +181,9 @@ public class UIManager : MonoBehaviour
         }
     }
 
+#endregion
+
+#region Animation Methods
     public void AnimateStartButtonAndTubes(Action onComplete)
     {
         // Animate start button falling
@@ -123,10 +215,16 @@ public class UIManager : MonoBehaviour
             spawnedTubes != null ? spawnedTubes.transform.position.z : 0f
         );
 
-        // Instantiate the tubes prefab only once
+        // If tubes already exist, animate them falling off screen and destroy after animation
         if (spawnedTubes != null)
         {
-            Destroy(spawnedTubes);
+            float yFall = cam.transform.position.y - cam.orthographicSize - 3f; // fall below screen
+            spawnedTubes.transform.DOScaleY(0.7f, 0.4f).SetEase(Ease.InBack);
+            spawnedTubes.transform.DOMoveY(yFall, 0.5f).SetEase(Ease.InBack).OnComplete(() =>
+            {
+                Destroy(spawnedTubes);
+                spawnedTubes = null;
+            });
         }
         spawnedTubes = Instantiate(tubesprefab, spawnPos, Quaternion.identity);
 
@@ -177,32 +275,5 @@ public class UIManager : MonoBehaviour
         cam.transform.DOComplete();
         cam.transform.DOShakePosition(duration, strength, 20, 90, false, true);
     }
-
-
-    public void ShowGameUI(int score)
-    {
-        if (mainMenuPanel != null) mainMenuPanel.SetActive(false);
-        if (gamePanel != null) gamePanel.SetActive(true);
-        if (gameOverPanel != null) gameOverPanel.SetActive(false);
-        UpdateScore(score);
-    }
-
-    public void UpdateScore(int score)
-    {
-        if(scoreText == null) return;
-        scoreText.text = $"Score: {score}";
-    }
-
-    public void UpdateNextBalls(BallColor[] nextColors)
-    {
-
-    }
-
-    public void ShowGameOver(int score)
-    {
-        if (gamePanel != null) gamePanel.SetActive(false);
-        if (gameOverPanel != null) gameOverPanel.SetActive(true);
-        if (finalScoreText != null)
-            finalScoreText.text = $"Final Score: {score}";
-    }
+#endregion
 }

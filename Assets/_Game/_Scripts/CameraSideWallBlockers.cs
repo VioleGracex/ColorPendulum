@@ -31,6 +31,38 @@ public class CameraSideWallBlockers : MonoBehaviour
     }
 #endif
 
+    void OnDrawGizmos()
+    {
+        Camera cam = targetCamera != null ? targetCamera : Camera.main;
+        if (cam == null) return;
+
+        float camHeight = cam.orthographicSize * 2f;
+        float camWidth = camHeight * cam.aspect;
+        Vector3 camPos = cam.transform.position;
+        float wallHeight = camHeight + wallVerticalMargin * 2f;
+
+        // Left wall
+        Vector3 leftPos = new Vector3(
+            camPos.x - camWidth / 2f - wallThickness / 2f,
+            camPos.y,
+            0f
+        );
+        // Right wall
+        Vector3 rightPos = new Vector3(
+            camPos.x + camWidth / 2f + wallThickness / 2f,
+            camPos.y,
+            0f
+        );
+
+        Gizmos.color = new Color(1f, 0.5f, 0f, 0.3f); // Orange, semi-transparent
+        Gizmos.DrawCube(leftPos, new Vector3(wallThickness, wallHeight, 1f));
+        Gizmos.DrawCube(rightPos, new Vector3(wallThickness, wallHeight, 1f));
+
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireCube(leftPos, new Vector3(wallThickness, wallHeight, 1f));
+        Gizmos.DrawWireCube(rightPos, new Vector3(wallThickness, wallHeight, 1f));
+    }
+
     void CreateOrUpdateWalls()
     {
         if (targetCamera == null) return;

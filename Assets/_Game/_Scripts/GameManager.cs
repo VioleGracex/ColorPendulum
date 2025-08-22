@@ -21,6 +21,10 @@ public class GameManager : MonoBehaviour
     public GameState state = GameState.MainMenu;
     int score = 0;
 
+    [Header("Hearts System")]
+    public int maxHearts = 3;
+    public int currentHearts = 3;
+
     private void Awake()
     {
         if (Instance == null)
@@ -31,7 +35,7 @@ public class GameManager : MonoBehaviour
 
     private void Start()
     {
-        uiManager.ShowMainMenu();
+        uiManager?.ShowMainMenu();
         state = GameState.MainMenu;
     }
 
@@ -46,22 +50,47 @@ public class GameManager : MonoBehaviour
 
     public void StartGame()
     {
+        // Reset all game state
         state = GameState.Playing;
         score = 0;
-        uiManager.ShowGameUI(score);
-        ballSpawner.InitAndSpawnFirst();
+        currentHearts = maxHearts;
+
+    // Reset UI
+    uiManager?.ShowGameUI(score);
+    uiManager?.UpdateHearts(currentHearts, maxHearts);
+
+        // Reset grid and balls
+        tubeManager?.ClearAllTubesAndBalls();
+        // Reset ball spawner
+        ballSpawner?.InitAndSpawnFirst();
+    }
+    public void AddHeart(int amount = 1)
+    {
+        currentHearts = Mathf.Min(currentHearts + amount, maxHearts);
+        uiManager?.UpdateHearts(currentHearts, maxHearts);
+    }
+
+    public void SubtractHeart(int amount = 1)
+    {
+        currentHearts = Mathf.Max(currentHearts - amount, 0);
+        uiManager?.UpdateHearts(currentHearts, maxHearts);
+        if (currentHearts <= 0)
+        {
+            GameOver();
+        }
     }
 
     public void AddScore(int amount)
     {
         score += amount;
-        uiManager.UpdateScore(score);
+        uiManager?.UpdateScore(score);
     }
 
     public void GameOver()
     {
         state = GameState.GameOver;
-        uiManager.ShowGameOver(score);
+        Debug.Log("[GameManager] Game Over ! Final Score: " + score);
+        uiManager?.ShowGameOver(score);
     }
 
     public void OnReplayButtonClicked()
@@ -72,6 +101,7 @@ public class GameManager : MonoBehaviour
     public void OnMenuButtonClicked()
     {
         state = GameState.MainMenu;
-        uiManager.ShowMainMenu();
+        uiManager?.ShowMainMenu();
+        tubeManager?.ClearAllTubesAndBalls();
     }
 }

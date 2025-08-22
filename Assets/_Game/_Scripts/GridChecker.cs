@@ -7,6 +7,8 @@ public static class GridChecker
     public static List<(int,int)> GetMatchedBalls(Ball[,] grid, int col, int row)
     {
         List<(int,int)> matched = new List<(int,int)>();
+        if (grid[col, row] == null) return matched; // Early out if slot empty
+
         BallColor color = grid[col, row].color;
 
         // Horizontal

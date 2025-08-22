@@ -1,4 +1,5 @@
 using UnityEngine;
+using DG.Tweening;
 
 public class Ball : MonoBehaviour
 {
@@ -6,6 +7,9 @@ public class Ball : MonoBehaviour
     public SpriteRenderer spriteRenderer;
     // public Sprite[] colorSprites; // No longer needed
     public ParticleSystem clearEffect;
+
+    // True if this ball has been successfully stacked in a tube
+    public bool placedInTube = false;
 
     private Rigidbody2D rb;
     private bool isFalling = false;
@@ -15,12 +19,7 @@ public class Ball : MonoBehaviour
         color = c;
         if (spriteRenderer != null)
         {
-            Color[] colors = { Color.red, Color.green, Color.blue };
-            int idx = (int)color;
-            if (idx >= 0 && idx < colors.Length)
-                spriteRenderer.color = colors[idx];
-            else
-                spriteRenderer.color = Color.white;
+            spriteRenderer.color = color.ToColor();
         }
     }
 
@@ -38,12 +37,13 @@ public class Ball : MonoBehaviour
     {
         if (clearEffect != null)
         {
+            // Detach the particle effect so it persists after the ball is destroyed
+            clearEffect.transform.SetParent(null);
             clearEffect.Play();
-            Destroy(gameObject, clearEffect.main.duration);
+            Destroy(clearEffect.gameObject, clearEffect.main.duration);
         }
-        else
-        {
-            Destroy(gameObject);
-        }
+
+        // Play DOTween scale animation before destroying the ball
+        transform.DOScale(Vector3.zero, 0.2f).SetEase(Ease.InBack).OnComplete(() => Destroy(gameObject));
     }
 }
