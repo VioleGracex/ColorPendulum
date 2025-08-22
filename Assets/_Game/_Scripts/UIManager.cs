@@ -43,9 +43,11 @@ public class UIManager : MonoBehaviour
 
     [Header("Next Balls UI")]
     [SerializeField] private Image[] nextBallImages; // Assign 3 UI Images in Inspector
+    
+    Vector2[] origPositions = null;
 #endregion
 
-#region UI Methods
+    #region UI Methods
     public void UpdateScore(int score)
     {
         if (scoreText == null) return;
@@ -75,25 +77,39 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    public void UpdateNextBalls(BallColor[] nextColors)
+    public void UpdateNextBalls(BallColor[] nextColors, bool initial = false)
     {
         if (nextBallImages == null) return;
+        // Cache original positions on first call
+        if (origPositions == null)
+        {
+            origPositions = new Vector2[nextBallImages.Length];
+            for (int i = 0; i < nextBallImages.Length; i++)
+                origPositions[i] = nextBallImages[i].rectTransform.anchoredPosition;
+        }
         for (int i = 0; i < nextBallImages.Length; i++)
         {
             if (i < nextColors.Length && nextColors[i] != BallColor.None)
             {
                 nextBallImages[i].gameObject.SetActive(true);
                 nextBallImages[i].color = nextColors[i].ToColor();
-                // Reset transform for layout group compatibility
+
                 RectTransform rt = nextBallImages[i].rectTransform;
-                rt.localScale = Vector3.one;
-                rt.localRotation = Quaternion.identity;
-                rt.anchoredPosition = Vector2.zero;
+                rt.DOKill();
+                float delay = initial ? 0 : 0.05f * i;
+                float popDistance = 100f;
+                // Always animate from the original anchored position
+                Vector2 startPos = origPositions[i] + new Vector2(0f, -popDistance);
+                rt.anchoredPosition = startPos;
+                rt.localRotation = Quaternion.Euler(0, 0, 0f);
+                rt.localScale = Vector3.one * 0.5f;
+                rt.DOAnchorPos(origPositions[i], 0.35f).SetEase(Ease.OutBack).SetDelay(delay);
+                rt.DOScale(1f, 0.35f).SetEase(Ease.OutBack).SetDelay(delay);
             }
-            else
+           /*  else
             {
                 nextBallImages[i].gameObject.SetActive(false);
-            }
+            } */
         }
     }
 

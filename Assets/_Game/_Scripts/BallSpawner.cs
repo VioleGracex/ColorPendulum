@@ -5,58 +5,75 @@ using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.EnhancedTouch;
 using System.Collections;
 
+/// <summary>
+/// Spawns balls, manages queue, pool, UI updates and gameplay controls.
+/// - Always shows 3 balls in the UI.
+/// - Every 3 balls used from the pool, generates 3 more (while preserving "no 3 in a row" rule).
+/// - Keeps track of used balls for replay/analytics or solvability.
+/// - Organizes code in clear regions for Algorithm, UI, and Ingame logic.
+/// </summary>
 public class BallSpawner : MonoBehaviour
 {
-    public Transform spawnHole; // The black circle "hole"
+    #region === Algorithm Fields & Logic ===
+    public Transform spawnHole;
     public GameObject ballPrefab;
     public PendulumController pendulum;
+    [Header("Ball Pool Settings")]
     public int nextQueueSize = 3;
-    public int poolSize = 9; // Number of balls in the pool to shuffle from
-
+    public int poolSize = 9; // Initial pool size (will be expanded in chunks of 3)
     private Queue<BallColor> ballQueue = new Queue<BallColor>();
+    private List<BallColor> usedColors = new List<BallColor>();
+    private int poolRefillChunk = 3;
+    private int ballsUsedSinceLastRefill = 0;
+    #endregion
 
+    #region === Ingame Fields & State ===
     [Header("Gameplay")]
     private Ball currentBall;
     private bool waitingForPlacement = false;
-
     private DistanceJoint2D currentJoint;
     private Rigidbody2D currentBallRb;
     private Coroutine breakRoutine;
     private bool canBreakJoint = false;
     [Header("Ball Spawner Options")]
-    public bool allowBreak = true; // Set to false to disable breaking
+    public bool allowBreak = true;
+    #endregion
 
+    #region === MonoBehavior / Entry Points ===
     public void InitAndSpawnFirst()
     {
         ballQueue.Clear();
-        GenerateShuffledQueue();
-        FillQueueToThree(); // Ensure at least 3 in queue at start
-        UpdateNextBallUI();
+        usedColors.Clear();
+        ballsUsedSinceLastRefill = 0;
+        GenerateShuffledQueue(poolSize);
+        EnsureQueueSize(nextQueueSize);
+        UpdateNextBallUI(true);
         SpawnNextBall();
     }
+    #endregion
 
-    private void GenerateShuffledQueue()
+    #region === Algorithm: Pool/Queue Management ===
+
+    // Generates a shuffled pool, ensuring no 3 of the same color in a row, and enqueues all into ballQueue
+    private void GenerateShuffledQueue(int amount)
     {
-        // Create a pool with poolSize balls, distributed as evenly as possible among all colors
         List<BallColor> pool = new List<BallColor>();
         int colorCount = System.Enum.GetValues(typeof(BallColor)).Length;
-        int perColor = poolSize / colorCount;
-        int extra = poolSize % colorCount;
+        int perColor = amount / colorCount;
+        int extra = amount % colorCount;
         for (int i = 0; i < colorCount; i++)
         {
             int count = perColor + (i < extra ? 1 : 0);
             for (int j = 0; j < count; j++)
-            {
                 pool.Add((BallColor)i);
-            }
         }
+
         // Shuffle and ensure no 3 of the same color in a row
         System.Random rng = new System.Random();
         bool valid = false;
         int maxTries = 20;
         while (!valid && maxTries-- > 0)
         {
-            // Fisher-Yates shuffle
             for (int i = pool.Count - 1; i > 0; i--)
             {
                 int j = rng.Next(i + 1);
@@ -77,47 +94,58 @@ public class BallSpawner : MonoBehaviour
         foreach (var c in pool) ballQueue.Enqueue(c);
     }
 
-    private void FillQueueToThree()
+    // Ensures the queue always has at least "minSize" balls, filling with random colors if needed
+    private void EnsureQueueSize(int minSize)
     {
-        // Always keep at least 3 balls in the queue for the next balls UI
         int colorCount = System.Enum.GetValues(typeof(BallColor)).Length;
-        while (ballQueue.Count < nextQueueSize)
+        while (ballQueue.Count < minSize)
         {
             BallColor randomColor = (BallColor)Random.Range(0, colorCount);
-            // Ensure not 3 in a row
             BallColor[] arr = ballQueue.ToArray();
             if (arr.Length >= 2 && arr[arr.Length - 1] == randomColor && arr[arr.Length - 2] == randomColor)
             {
-                // Pick a different color
                 List<BallColor> possible = new List<BallColor>();
                 for (int i = 0; i < colorCount; i++)
-                {
                     if ((BallColor)i != randomColor)
                         possible.Add((BallColor)i);
-                }
                 randomColor = possible[Random.Range(0, possible.Count)];
             }
             ballQueue.Enqueue(randomColor);
         }
     }
 
+    // Every 3 balls used from the pool, generate 3 more and add to queue.
+    private void RefillPoolIfNeeded()
+    {
+        ballsUsedSinceLastRefill++;
+        if (ballsUsedSinceLastRefill >= poolRefillChunk)
+        {
+            GenerateShuffledQueue(poolRefillChunk);
+            ballsUsedSinceLastRefill = 0;
+        }
+    }
+    #endregion
+
+    #region === Ingame: Ball Spawning & Placement ===
     public void SpawnNextBall()
     {
         if (GameManager.Instance.state != GameState.Playing) return;
         if (ballQueue.Count == 0)
-        {
-            GenerateShuffledQueue();
-        }
+            GenerateShuffledQueue(poolRefillChunk);
 
         BallColor color = ballQueue.Dequeue();
-        FillQueueToThree(); // Keep queue always at 3 or more
-        UpdateNextBallUI(); // Always update after dequeue/enqueue
+        usedColors.Add(color);
+
+        RefillPoolIfNeeded();
+        EnsureQueueSize(nextQueueSize); // Always keep the UI fed
+
+        UpdateNextBallUI(false);
 
         // Animate ball coming out of hole with scale
         Vector3 spawnPos = spawnHole.position;
         GameObject ballObj = Instantiate(ballPrefab, spawnPos + Vector3.up * 1.5f, Quaternion.identity);
         Ball ball = ballObj.GetComponent<Ball>();
-        ball.SetColor(color); // Set color immediately, before any animation
+        ball.SetColor(color);
         ballObj.transform.localScale = Vector3.zero;
         canBreakJoint = false;
         ballObj.transform.DOMove(spawnPos, 0.25f).SetEase(Ease.OutBack).OnComplete(() =>
@@ -126,38 +154,27 @@ public class BallSpawner : MonoBehaviour
             {
                 currentBall = ball;
                 waitingForPlacement = true;
-
-                // Ensure Rigidbody2D is enabled and set up
                 Rigidbody2D rb = ballObj.GetComponent<Rigidbody2D>();
                 if (!rb) rb = ballObj.AddComponent<Rigidbody2D>();
-                rb.gravityScale = 0f; // No gravity until attached
+                rb.gravityScale = 0f;
                 rb.bodyType = RigidbodyType2D.Dynamic;
 
-                // Attach DistanceJoint2D and set anchor to pendulum pivot
                 DistanceJoint2D joint = ballObj.GetComponent<DistanceJoint2D>();
                 if (!joint) joint = ballObj.AddComponent<DistanceJoint2D>();
                 joint.autoConfigureConnectedAnchor = false;
                 joint.connectedBody = pendulum.pivot.GetComponent<Rigidbody2D>();
-                joint.anchor = Vector2.zero; // center of ball
+                joint.anchor = Vector2.zero;
                 joint.connectedAnchor = pendulum.pivot.InverseTransformPoint(pendulum.pivot.position);
                 joint.enableCollision = true;
 
-                // Now attach to pendulum (for reference)
                 pendulum.AttachBall(ball);
-
-                // Start gravity and swinging
                 rb.gravityScale = 2f;
-
-                // Apply force to start infinite swing
                 float swingDir = Random.value < 0.5f ? -1f : 1f;
-                float force = 8f; // Tune as needed for desired swing
+                float force = 8f;
                 rb.AddForce(new Vector2(swingDir * force, 0), ForceMode2D.Impulse);
 
-                // Store references for breaking
                 currentJoint = joint;
                 currentBallRb = rb;
-
-                // Start listening for input to break the joint
                 if (breakRoutine != null) StopCoroutine(breakRoutine);
                 canBreakJoint = true;
                 breakRoutine = StartCoroutine(WaitForBreakInput());
@@ -165,41 +182,15 @@ public class BallSpawner : MonoBehaviour
         });
     }
 
-    // Always show 3 balls in the UI, left-aligned, using the next in the queue or hidden if queue is short
-    private void UpdateNextBallUI()
-    {
-        if (UIManager.Instance != null)
-        {
-            BallColor[] nextColors = new BallColor[nextQueueSize];
-            int idx = 0;
-            foreach (var c in ballQueue)
-            {
-                if (idx >= nextQueueSize) break;
-                nextColors[idx++] = c;
-            }
-            // If fewer than 3, fill the rest with None (to be hidden by UI)
-            for (int i = idx; i < nextQueueSize; i++)
-                nextColors[i] = BallColor.None;
-            UIManager.Instance.UpdateNextBalls(nextColors);
-        }
-    }
-
     private IEnumerator WaitForBreakInput()
     {
         EnhancedTouchSupport.Enable();
-        if (!allowBreak)
-        {
-            yield break;
-        }
+        if (!allowBreak) yield break;
         bool released = false;
 
         while (!released)
         {
-            if (!canBreakJoint || currentJoint == null)
-            {
-                yield return null;
-                continue;
-            }
+            if (!canBreakJoint || currentJoint == null) { yield return null; continue; }
             if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame && currentJoint != null)
                 released = true;
             foreach (var touch in UnityEngine.InputSystem.EnhancedTouch.Touch.activeTouches)
@@ -248,7 +239,7 @@ public class BallSpawner : MonoBehaviour
                 else if (rb != null && rb.linearVelocity.magnitude <= 0.1f)
                 {
                     stuckTime += Time.deltaTime;
-                    if (stuckTime >= 0.3f)
+                    if (stuckTime >= 0.5f)
                     {
                         Debug.Log("Ball out of bounds! Lost a heart.");
                         Destroy(currentBall.gameObject);
@@ -270,4 +261,35 @@ public class BallSpawner : MonoBehaviour
             }
         }
     }
+    #endregion
+
+    #region === UI ===
+    // Animate UI balls: always show 3 and animate new balls in
+    private void UpdateNextBallUI(bool initial = false)
+    {
+        if (UIManager.Instance != null)
+        {
+            BallColor[] nextColors = new BallColor[nextQueueSize];
+            int idx = 0;
+            foreach (var c in ballQueue)
+            {
+                if (idx >= nextQueueSize) break;
+                nextColors[idx++] = c;
+            }
+            for (int i = idx; i < nextQueueSize; i++)
+                nextColors[i] = BallColor.None;
+            UIManager.Instance.UpdateNextBalls(nextColors, initial);
+        }
+    }
+    #endregion
+
+    #region === Public: For Analytics or Replay ===
+    /// <summary>
+    /// Returns a list of all colors that have been used/spawned so far.
+    /// </summary>
+    public List<BallColor> GetUsedColors()
+    {
+        return new List<BallColor>(usedColors);
+    }
+    #endregion
 }
