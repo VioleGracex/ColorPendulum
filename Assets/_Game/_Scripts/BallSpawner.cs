@@ -7,8 +7,10 @@ using System.Collections;
 
 /// <summary>
 /// Spawns balls, manages queue, pool, UI updates and gameplay controls.
-/// - Always shows 3 balls in the UI.
-/// - Every 3 balls used from the pool, generates 3 more (while preserving "no 3 in a row" rule).
+/// - Always shows 3 balls in the UI, in the correct order.
+/// - Maintains a "current pool" and "next pool" to avoid reshuffling the order after each throw.
+/// - Each pool is only shuffled when it's created, and pools are never shuffled together.
+/// - Each pool always has 3 of each color (for 3 colors, poolSize = 9), so game is always solvable.
 /// - Keeps track of used balls for replay/analytics or solvability.
 /// - Organizes code in clear regions for Algorithm, UI, and Ingame logic.
 /// </summary>
@@ -20,11 +22,15 @@ public class BallSpawner : MonoBehaviour
     public PendulumController pendulum;
     [Header("Ball Pool Settings")]
     public int nextQueueSize = 3;
-    public int poolSize = 9; // Initial pool size (will be expanded in chunks of 3)
-    private Queue<BallColor> ballQueue = new Queue<BallColor>();
+    public int poolSize = 9;   // Always 9 (3 of each color for 3 colors, for solvable puzzles)
+
+    // Pools: Only swap and shuffle when a pool is fully used!
+    private List<BallColor> currentPool = new List<BallColor>();
+    private List<BallColor> nextPool = new List<BallColor>();
+    private int poolIndex = 0; // Index of next ball to use in currentPool
+
     private List<BallColor> usedColors = new List<BallColor>();
-    private int poolRefillChunk = 3;
-    private int ballsUsedSinceLastRefill = 0;
+    private List<BallColor> allColors = new List<BallColor>();
     #endregion
 
     #region === Ingame Fields & State ===
@@ -39,14 +45,29 @@ public class BallSpawner : MonoBehaviour
     public bool allowBreak = true;
     #endregion
 
-    #region === MonoBehavior / Entry Points ===
+    #region === MonoBehaviour / Entry Points ===
     public void InitAndSpawnFirst()
     {
-        ballQueue.Clear();
+        // Gather all BallColors except BallColor.None, and always only 3!
+        allColors.Clear();
+        foreach (var bc in System.Enum.GetValues(typeof(BallColor)))
+        {
+            BallColor c = (BallColor)bc;
+            if (c != BallColor.None)
+                allColors.Add(c);
+        }
+        // Enforce: only the first 3 colors allowed!
+        if (allColors.Count > 3)
+            allColors = allColors.GetRange(0, 3);
+
+        poolSize = 3 * allColors.Count; // Always 9 for 3 colors
+
+        currentPool.Clear();
+        nextPool.Clear();
         usedColors.Clear();
-        ballsUsedSinceLastRefill = 0;
-        GenerateShuffledQueue(poolSize);
-        EnsureQueueSize(nextQueueSize);
+        poolIndex = 0;
+        GenerateShuffledPool(currentPool, allColors, poolSize);
+        GenerateShuffledPool(nextPool, allColors, poolSize);
         UpdateNextBallUI(true);
         SpawnNextBall();
     }
@@ -54,26 +75,29 @@ public class BallSpawner : MonoBehaviour
 
     #region === Algorithm: Pool/Queue Management ===
 
-    // Generates a shuffled pool, ensuring no 3 of the same color in a row, and enqueues all into ballQueue
-    private void GenerateShuffledQueue(int amount)
+    /// <summary>
+    /// Generates a shuffled pool with exactly poolSize balls, only 3 colors (each 3 times for poolSize=9).
+    /// Never generates more than two of the same color in a row.
+    /// </summary>
+    private void GenerateShuffledPool(List<BallColor> pool, List<BallColor> allowedColors, int amount)
     {
-        List<BallColor> pool = new List<BallColor>();
-        int colorCount = System.Enum.GetValues(typeof(BallColor)).Length;
-        int perColor = amount / colorCount;
-        int extra = amount % colorCount;
+        pool.Clear();
+        // Only use the three allowed colors!
+        int colorCount = 3;
+        // Fill pool with even distribution (3 of each color)
         for (int i = 0; i < colorCount; i++)
         {
-            int count = perColor + (i < extra ? 1 : 0);
-            for (int j = 0; j < count; j++)
-                pool.Add((BallColor)i);
+            for (int j = 0; j < amount / colorCount; j++)
+                pool.Add(allowedColors[i]);
         }
 
-        // Shuffle and ensure no 3 of the same color in a row
+        // Shuffle, ensuring no 3-in-a-row
         System.Random rng = new System.Random();
         bool valid = false;
-        int maxTries = 20;
+        int maxTries = 50;
         while (!valid && maxTries-- > 0)
         {
+            // Fisher-Yates shuffle
             for (int i = pool.Count - 1; i > 0; i--)
             {
                 int j = rng.Next(i + 1);
@@ -81,6 +105,7 @@ public class BallSpawner : MonoBehaviour
                 pool[i] = pool[j];
                 pool[j] = temp;
             }
+            // Check no 3-in-a-row
             valid = true;
             for (int i = 2; i < pool.Count; i++)
             {
@@ -91,38 +116,52 @@ public class BallSpawner : MonoBehaviour
                 }
             }
         }
-        foreach (var c in pool) ballQueue.Enqueue(c);
     }
 
-    // Ensures the queue always has at least "minSize" balls, filling with random colors if needed
-    private void EnsureQueueSize(int minSize)
+    /// <summary>
+    /// Get the next BallColor for spawning, swap and shuffle pools only when completely used!
+    /// </summary>
+    private BallColor GetNextBallColor()
     {
-        int colorCount = System.Enum.GetValues(typeof(BallColor)).Length;
-        while (ballQueue.Count < minSize)
+        if (poolIndex >= currentPool.Count)
         {
-            BallColor randomColor = (BallColor)Random.Range(0, colorCount);
-            BallColor[] arr = ballQueue.ToArray();
-            if (arr.Length >= 2 && arr[arr.Length - 1] == randomColor && arr[arr.Length - 2] == randomColor)
-            {
-                List<BallColor> possible = new List<BallColor>();
-                for (int i = 0; i < colorCount; i++)
-                    if ((BallColor)i != randomColor)
-                        possible.Add((BallColor)i);
-                randomColor = possible[Random.Range(0, possible.Count)];
-            }
-            ballQueue.Enqueue(randomColor);
+            // Move nextPool to currentPool, then (and ONLY then) shuffle new nextPool.
+            var temp = currentPool;
+            currentPool = nextPool;
+            nextPool = temp;
+            GenerateShuffledPool(nextPool, allColors, poolSize);
+            poolIndex = 0;
         }
+        BallColor color = currentPool[poolIndex];
+        poolIndex++;
+        usedColors.Add(color);
+        return color;
     }
 
-    // Every 3 balls used from the pool, generate 3 more and add to queue.
-    private void RefillPoolIfNeeded()
+    /// <summary>
+    /// For UI: Get the next N ball colors (across currentPool and nextPool, in order)
+    /// </summary>
+    private BallColor[] PeekNextBallColors(int n)
     {
-        ballsUsedSinceLastRefill++;
-        if (ballsUsedSinceLastRefill >= poolRefillChunk)
+        BallColor[] nextColors = new BallColor[n];
+        int tempIndex = poolIndex;
+        int colorsFromCurrent = Mathf.Min(currentPool.Count - tempIndex, n);
+
+        // Fill from currentPool
+        for (int i = 0; i < colorsFromCurrent; i++)
         {
-            GenerateShuffledQueue(poolRefillChunk);
-            ballsUsedSinceLastRefill = 0;
+            nextColors[i] = currentPool[tempIndex + i];
         }
+
+        // Fill from nextPool if needed
+        for (int i = colorsFromCurrent; i < n; i++)
+        {
+            if (nextPool.Count > 0)
+                nextColors[i] = nextPool[i - colorsFromCurrent];
+            else
+                nextColors[i] = BallColor.None;
+        }
+        return nextColors;
     }
     #endregion
 
@@ -130,14 +169,8 @@ public class BallSpawner : MonoBehaviour
     public void SpawnNextBall()
     {
         if (GameManager.Instance.state != GameState.Playing) return;
-        if (ballQueue.Count == 0)
-            GenerateShuffledQueue(poolRefillChunk);
 
-        BallColor color = ballQueue.Dequeue();
-        usedColors.Add(color);
-
-        RefillPoolIfNeeded();
-        EnsureQueueSize(nextQueueSize); // Always keep the UI fed
+        BallColor color = GetNextBallColor();
 
         UpdateNextBallUI(false);
 
@@ -239,7 +272,7 @@ public class BallSpawner : MonoBehaviour
                 else if (rb != null && rb.linearVelocity.magnitude <= 0.1f)
                 {
                     stuckTime += Time.deltaTime;
-                    if (stuckTime >= 0.5f)
+                    if (stuckTime >= 1.5f)
                     {
                         Debug.Log("Ball out of bounds! Lost a heart.");
                         Destroy(currentBall.gameObject);
@@ -264,20 +297,12 @@ public class BallSpawner : MonoBehaviour
     #endregion
 
     #region === UI ===
-    // Animate UI balls: always show 3 and animate new balls in
+    // Animate UI balls: always show 3 and animate new balls in correct order
     private void UpdateNextBallUI(bool initial = false)
     {
         if (UIManager.Instance != null)
         {
-            BallColor[] nextColors = new BallColor[nextQueueSize];
-            int idx = 0;
-            foreach (var c in ballQueue)
-            {
-                if (idx >= nextQueueSize) break;
-                nextColors[idx++] = c;
-            }
-            for (int i = idx; i < nextQueueSize; i++)
-                nextColors[i] = BallColor.None;
+            BallColor[] nextColors = PeekNextBallColors(nextQueueSize);
             UIManager.Instance.UpdateNextBalls(nextColors, initial);
         }
     }

@@ -23,8 +23,8 @@ public class GameManager : MonoBehaviour
     int score = 0;
 
     [Header("Hearts System")]
-    public int maxHearts = 3;
-    public int currentHearts = 3;
+    public int maxHearts = 4;
+    public int currentHearts = 4;
 
     private void Awake()
     {

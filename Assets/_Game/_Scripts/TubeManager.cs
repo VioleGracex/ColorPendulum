@@ -50,7 +50,7 @@ public class TubeManager : MonoBehaviour
     private bool shiftingInProgress = false;
     private void Update()
     {
-        if(GameManager.Instance.state != GameState.Playing)
+        if (GameManager.Instance.state != GameState.Playing)
             return;
 
         overlapCheckTimer += Time.deltaTime;
@@ -145,6 +145,23 @@ public class TubeManager : MonoBehaviour
         // Detect balls in each tube's region and stack them if not already stacked or stacking
         for (int col = 0; col < columns; col++)
         {
+            // Check if column is already full
+            bool columnFull = true;
+            for (int row = 0; row < rows; row++)
+            {
+                if (grid[col, row] == null)
+                {
+                    columnFull = false;
+                    break;
+                }
+            }
+            if (columnFull)
+            {
+                Debug.Log("[TubeManager] Column " + col + " is full.");
+                continue; // Skip stacking in this column if full
+            }
+                
+
             Vector3 basePos = GetLaneCenter(col);
             Vector2 boxSize = new Vector2(ballSize * 0.9f, laneHeight);
             Vector3 boxCenter = basePos + Vector3.up * (laneHeight / 2f);
@@ -426,7 +443,7 @@ public class TubeManager : MonoBehaviour
         return (false, new List<(int, int)>());
     }
 
-     // Updates all lids for all columns based on current grid state
+    // Updates all lids for all columns based on current grid state
     private void UpdateAllLids()
     {
         if (lidsController == null)
@@ -595,6 +612,23 @@ public class TubeManager : MonoBehaviour
     public void ClearAllBalls()
     {
         GameManager.Instance.state = GameState.Cleaning;
+        // Clear grid first to prevent GameOver from being called again
+        grid = new Ball[columns, rows];
+        // Destroy all balls
+        var allBalls = FindObjectsByType<Ball>(FindObjectsSortMode.None);
+        foreach (var ball in allBalls)
+        {
+            //ball.PlayClearEffect();
+            Destroy(ball.gameObject);
+        }
+        // Reset all containers
+        stackedBalls.Clear();
+        stackingInProgress.Clear();
+        ballRestingFrames.Clear();
+
+    }
+    public void ClearAllBallsTest()
+    {
         // Clear grid first to prevent GameOver from being called again
         grid = new Ball[columns, rows];
         // Destroy all balls

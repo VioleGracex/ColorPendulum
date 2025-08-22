@@ -100,13 +100,29 @@ public class TubeManagerAutoTest : MonoBehaviour
     {
         Debug.Log("=== TubeManager Automated Tests Start ===");
         yield return Test_VerticalMatch3();
+        yield return new WaitForSeconds(1.0f); // Add cooldown between tests
+
         yield return Test_HorizontalMatch3();
+        yield return new WaitForSeconds(1.0f);
+
         yield return Test_DiagonalMatch3();
+        yield return new WaitForSeconds(1.0f);
+
         yield return Test_NonMatching3_LidClose();
+        yield return new WaitForSeconds(1.0f);
+
         yield return Test_MultiColumnRowMatch();
+        yield return new WaitForSeconds(1.0f);
+
         yield return Test_ShiftAndChainMatch();
+        yield return new WaitForSeconds(1.0f);
+
         yield return Test_LastMatchNotGameOver();
+        yield return new WaitForSeconds(1.0f);
+
         yield return Test_GameOver();
+        yield return new WaitForSeconds(1.0f);
+
         yield return Test_Cleanup();
         Debug.Log("=== TubeManager Automated Tests End ===");
     }
@@ -154,14 +170,18 @@ public class TubeManagerAutoTest : MonoBehaviour
             Assert(tubeManagerIsSlotEmpty(col, row), $"Diagonal match-3 did not clear {col},{row}");
     }
 
-    private IEnumerator Test_NonMatching3_LidClose()
+   private IEnumerator Test_NonMatching3_LidClose()
     {
         Debug.Log("Test: Non-matching 3 - Lid Close");
         yield return CleanupAndWait();
         BallColor[] colors = { BallColor.Red, BallColor.Green, BallColor.Blue };
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < colors.Length; i++)
             yield return StackAndWait(SpawnTestBall(colors[i], 1), 1);
-        yield return new WaitForSeconds(0.5f);
+
+        // Wait for the lid to update (at least 1 frame)
+        yield return null;
+        // Or wait a bit longer for extra safety: yield return new WaitForSeconds(0.2f);
+
         if (tubeManager.TryGetComponent<LidsController>(out var lids))
         {
             Assert(lids.IsLidClosed(1), "Lid was not closed on column 1");
@@ -211,10 +231,14 @@ public class TubeManagerAutoTest : MonoBehaviour
         yield return StackAndWait(SpawnTestBall(BallColor.Green, 0), 0);
         yield return StackAndWait(SpawnTestBall(BallColor.Green, 0), 0);
 
+        yield return new WaitForSeconds(0.2f);
+
         // Now stack 2 Green in col 1, then one Red at top
         yield return StackAndWait(SpawnTestBall(BallColor.Green, 1), 1);
         yield return StackAndWait(SpawnTestBall(BallColor.Green, 1), 1);
         yield return StackAndWait(SpawnTestBall(BallColor.Red, 1), 1);
+
+        yield return new WaitForSeconds(0.2f);
 
         // Now, clear (0,1), (0,2), (1,0), (1,1) by adding Green to (1,2) to trigger vertical and horizontal match after shifting
         yield return StackAndWait(SpawnTestBall(BallColor.Green, 1), 1);
@@ -346,7 +370,7 @@ public class TubeManagerAutoTest : MonoBehaviour
 
     private IEnumerator CleanupAndWait()
     {
-        tubeManager.ClearAllBalls();
+        tubeManager.ClearAllBallsTest();
         yield return WaitPhysicsFrame();
         yield return new WaitForSeconds(0.2f);
     }
